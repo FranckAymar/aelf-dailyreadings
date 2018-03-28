@@ -138,6 +138,10 @@ public class LectureFragment extends Fragment implements
         StringBuilder htmlString = new StringBuilder();
         String body = getArguments().getString(ARG_TEXT_HTML);
 
+        body = body.replace("<span", "<span tabindex=\"0\"");
+        body = body.replace("<blockquote", "<blockquote tabindex=\"0\"");
+        body = body.replace("<div", "<div tabindex=\"0\"");
+
         String color_text_accent = colorResourceToRgba(R.attr.colorLectureAccent);
         String color_text_bg = colorResourceToRgba(R.attr.colorLectureBackground);
         String color_text_fg = colorResourceToRgba(R.attr.colorLectureText);
@@ -238,6 +242,22 @@ public class LectureFragment extends Fragment implements
                         ".line {" +
                         "   display: block;" +
                         "   margin-bottom: 5px;" +
+                        "}" +
+                        // Highlight the current position in the lecture. This is hint for the user
+                        ":focus {" +
+                        "    outline: none;" +
+                        "    border-left: 2px "+color_text_accent+" solid;" +
+                        "    margin-left: -4px;" +
+                        "}" +
+                        "blockquote:focus {" +
+                        "    padding-left: 2px;" +
+                        "    margin-left: 36px;" +
+                        "}" +
+                        ".line:focus, div.antienne:focus {" +
+                        "    padding-left: 2px;" +
+                        "}" +
+                        ".line-wrap:focus {" +
+                        "    padding-left: 27px;" +
                         "}" +
                         ".line-wrap {" +
                         "   display: block;" +
