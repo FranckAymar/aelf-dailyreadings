@@ -100,6 +100,7 @@ public class SectionOfficesFragment extends SectionFragmentBase implements
             // Restore saved instance state. Especially useful on screen rotate on older phones
             whatwhen.what = LecturesController.WHAT.values()[arguments.getInt("what", 0)];
             whatwhen.position = arguments.getInt("position", 0);
+            whatwhen.focusedVerseId = arguments.getString("focusedVerseId", "");
 
             long timestamp = arguments.getLong("when", DATE_TODAY);
             if (timestamp == DATE_TODAY) {
@@ -294,10 +295,20 @@ public class SectionOfficesFragment extends SectionFragmentBase implements
         int position = 0; // first slide by default
         int what = 0; // "Messe" by default
         long when = DATE_TODAY;
+        String focusedVerseId = "";
 
         if (whatwhen != null) {
             if (whatwhen.what != null) what = whatwhen.what.getPosition();
-            if (mViewPager != null) position = mViewPager.getCurrentItem();
+            if (mViewPager != null) {
+                position = mViewPager.getCurrentItem();
+                LecturePagerAdapter lecturePagerAdapter = (LecturePagerAdapter) mViewPager.getAdapter();
+                if (lecturePagerAdapter != null) {
+                    LectureFragment lectureFragment = lecturePagerAdapter.getCurrentLectureFragment();
+                    if (lectureFragment != null) {
+                        focusedVerseId = lectureFragment.getFocusedVerseId();
+                    }
+                }
+            }
             if (whatwhen.when != null && !whatwhen.today && !whatwhen.when.isToday()) {
                 when = whatwhen.when.getTimeInMillis();
             }
@@ -307,6 +318,7 @@ public class SectionOfficesFragment extends SectionFragmentBase implements
         outState.putInt("position", position);
         outState.putLong("when", when);
         outState.putLong("last-update", System.currentTimeMillis());
+        outState.putString("focusedVerseId", focusedVerseId);
     }
 
     //
@@ -662,12 +674,13 @@ public class SectionOfficesFragment extends SectionFragmentBase implements
                 }
             } else {
                 whatwhen.position = 0;
+                whatwhen.focusedVerseId = "";
             }
 
             // Set up the ViewPager with the sections adapter.
             try {
                 // 1 slide fragment <==> 1 lecture
-                lecturesPagerAdapter = new LecturePagerAdapter(activity.getSupportFragmentManager(), lectures);
+                lecturesPagerAdapter = new LecturePagerAdapter(activity.getSupportFragmentManager(), lectures, whatwhen.position, whatwhen.focusedVerseId);
                 FragmentTransaction transaction = activity.getSupportFragmentManager().beginTransaction();
 
                 mViewPager.setAdapter(lecturesPagerAdapter);

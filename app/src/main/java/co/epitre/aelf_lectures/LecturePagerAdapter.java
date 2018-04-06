@@ -18,10 +18,19 @@ class LecturePagerAdapter extends FragmentStatePagerAdapter {
     public static final String TAG = "LecturePagerAdapter";
 
     private List<LectureItem> mlectures;
+    private LectureFragment currentLectureFragment;
+    private int mStartPosition = -1;
+    private String mStartFocusedVerseId = "";
 
-    LecturePagerAdapter(FragmentManager fm, List<LectureItem> lectures) {
+    LecturePagerAdapter(FragmentManager fm, List<LectureItem> lectures, int startPosition, String startFocusedVerseId) {
         super(fm);
         mlectures = lectures;
+        mStartPosition = startPosition;
+        mStartFocusedVerseId = startFocusedVerseId;
+    }
+
+    public LectureFragment getCurrentLectureFragment() {
+        return currentLectureFragment;
     }
 
     @Override
@@ -32,6 +41,10 @@ class LecturePagerAdapter extends FragmentStatePagerAdapter {
 
         Bundle args = new Bundle();
         args.putString(LectureFragment.ARG_TEXT_HTML, lecture.description);
+        if (mStartPosition == position) {
+            mStartPosition = -1;
+            args.putString(LectureFragment.ARG_FOCUSED_VERSE_ID, mStartFocusedVerseId);
+        }
         fragment.setArguments(args);
         return fragment;
     }
@@ -64,5 +77,11 @@ class LecturePagerAdapter extends FragmentStatePagerAdapter {
         } catch (NullPointerException nullPointerException){
             Log.w(TAG, "Catch the NullPointerException in FragmentPagerAdapter.finishUpdate");
         }
+    }
+
+    @Override
+    public void setPrimaryItem(ViewGroup container, int position, Object object) {
+        currentLectureFragment = ((LectureFragment) object);
+        super.setPrimaryItem(container, position, object);
     }
 }

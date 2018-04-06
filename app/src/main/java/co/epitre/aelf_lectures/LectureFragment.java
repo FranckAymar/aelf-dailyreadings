@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
@@ -21,6 +22,7 @@ import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -39,6 +41,7 @@ public class LectureFragment extends Fragment implements
      */
     private static final String TAG = "LectureFragment";
     public static final String ARG_TEXT_HTML = "text html";
+    public static final String ARG_FOCUSED_VERSE_ID = "arg_focused_verse_id";
     protected WebView lectureView;
     protected WebSettings websettings;
     private SwipeRefreshLayout swipeLayout;
@@ -51,6 +54,7 @@ public class LectureFragment extends Fragment implements
      */
     private boolean isZooming = false;
     private boolean hasNetwork = false;
+    private String focusedVerseId = null;
 
     @Override
     public void onNetworkStatusChanged(NetworkStatusMonitor.NetworkStatusEvent networkStatusEvent) {
@@ -130,17 +134,31 @@ public class LectureFragment extends Fragment implements
         return String.format(Locale.ENGLISH, "rgba(%d, %d, %d, %.2f)", r, g, b, a);
     }
 
+    /**
+     * Public API exposed to the lecture webview. This method is called whenever the focused verse
+     * changes so that we may restore it on screen rotation.
+     * @param focusedVerseId
+     */
+    @JavascriptInterface
+    public void updateFocusedVerseId(String focusedVerseId) {
+        Log.d("LectureApi", "Focused element ID changed to: "+focusedVerseId);
+        this.focusedVerseId = focusedVerseId;
+    }
+
+    public String getFocusedVerseId() {
+        return focusedVerseId;
+    }
+
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, final Bundle savedInstanceState) {
         Context context = getActivity();
 
         // compute view --> HTML
         StringBuilder htmlString = new StringBuilder();
-        String body = getArguments().getString(ARG_TEXT_HTML);
-
-        body = body.replace("<span", "<span tabindex=\"0\"");
-        body = body.replace("<blockquote", "<blockquote tabindex=\"0\"");
-        body = body.replace("<div", "<div tabindex=\"0\"");
+        Bundle arguments = getArguments();
+        String body = arguments.getString(ARG_TEXT_HTML);
+        final String focusedVerseId = arguments.getString(ARG_FOCUSED_VERSE_ID);
+        this.focusedVerseId = focusedVerseId;
 
         String color_text_accent = colorResourceToRgba(R.attr.colorLectureAccent);
         String color_text_bg = colorResourceToRgba(R.attr.colorLectureBackground);
@@ -253,7 +271,7 @@ public class LectureFragment extends Fragment implements
                         "    padding-left: 2px;" +
                         "    margin-left: 36px;" +
                         "}" +
-                        ".line:focus, div.antienne:focus {" +
+                        "span:focus {" +
                         "    padding-left: 2px;" +
                         "}" +
                         ".line-wrap:focus {" +
@@ -274,9 +292,23 @@ public class LectureFragment extends Fragment implements
                         "   font-weight: bold;" +
                         "} " +
                         "</style>" +
-                    "</head>" +
+                        "</head>" +
                     "<body>");
         htmlString.append(body);
+        htmlString.append(
+                "<script type=\"text/javascript\">" +
+                    "(function() {" +
+                        "var element = document.getElementById('" + focusedVerseId + "');" +
+                        "if (element !== null) {" +
+                        "   element.focus();" +
+                        "}" +
+                        "function onFocused() {" +
+                        "   window.appApi.updateFocusedVerseId(document.activeElement.id);" +
+                        "}" +
+                        "document.addEventListener('focus', onFocused, true);" +
+                    "})();" +
+                "</script>"
+        );
         htmlString.append("</body></html>");
 
         String reading = htmlString.toString();
@@ -288,27 +320,13 @@ public class LectureFragment extends Fragment implements
         websettings = lectureView.getSettings();
         websettings.setBuiltInZoomControls(false);
 
-        // Log.d("HTML IN", "VERSION: "+lectureView.getSettings().getUserAgentString()+" DATA: "+reading);
+        // Expose internal API
+        websettings.setDomStorageEnabled(true);
+        websettings.setJavaScriptEnabled(true);
+        lectureView.addJavascriptInterface(this, "appApi");
 
         // Capture links
         lectureView.setWebViewClient(new WebViewClient() {
-            // DEBUG: print interpreted HTML
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                if (Build.VERSION.SDK_INT >= 19) {
-                    view.evaluateJavascript(
-                            "(function() { return ('<html>'+document.getElementsByTagName('html')[0].innerHTML+'</html>'); })();",
-                            new ValueCallback<String>() {
-                                @Override
-                                public void onReceiveValue(String html) {
-                                    // Log.d("HTML INTERPRETED", "VERSION: "+lectureView.getSettings().getUserAgentString()+" DATA: "+html.replace("\\u003C", "<").replace("\\\"", "\""));
-                                }
-                            }
-                    );
-                }
-            }
-
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 Log.w(TAG, "Got a URL: "+url);
@@ -368,7 +386,6 @@ public class LectureFragment extends Fragment implements
         });
 
         // accessibility: enable (best effort)
-        websettings.setJavaScriptEnabled(true);
         try {
             lectureView.setAccessibilityDelegate(new View.AccessibilityDelegate());
         } catch (NoClassDefFoundError e) {

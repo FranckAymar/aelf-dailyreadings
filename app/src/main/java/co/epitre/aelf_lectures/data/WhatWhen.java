@@ -15,6 +15,7 @@ public class WhatWhen {
     public int position;
     public boolean useCache = true;
     public String anchor = null;
+    public String focusedVerseId = null;
 
     public String toTrackerName() {
         return what.urlName()+"."+when.dayBetween(new GregorianCalendar());
@@ -32,6 +33,7 @@ public class WhatWhen {
         c.position = position;
         c.useCache = useCache;
         c.anchor = anchor;
+        c.focusedVerseId = focusedVerseId;
         return c;
     }
 }
