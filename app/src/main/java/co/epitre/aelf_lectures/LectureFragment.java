@@ -299,6 +299,15 @@ public class LectureFragment extends Fragment implements
                 "<script type=\"text/javascript\">" +
                     "(function() {" +
                         "var element = document.getElementById('" + focusedVerseId + "');" +
+                        "if (element === null) {" +
+                        "   var elements = document.getElementsByClassName('line');" +
+                        "   for (var i=0; i<elements.length; i++) {" +
+                        "       console.log(elements[i].innerHTML);" +
+                        "       if (elements[i].innerHTML == '') continue;" +
+                        "       element = elements[i];" +
+                        "       break;" +
+                        "   }" +
+                        "}" +
                         "if (element !== null) {" +
                         "   element.focus();" +
                         "}" +
